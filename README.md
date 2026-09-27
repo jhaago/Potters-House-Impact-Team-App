@@ -36,5 +36,7 @@ Open `iosApp/ImpactTeamApp.xcodeproj` in Xcode to run the iPhone shell. The Xcod
 
 - [Architecture design](docs/superpowers/specs/2026-09-27-impact-team-app-architecture-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-09-27-cross-platform-tracking-foundation-implementation.md)
+- [Offline field-test procedure](docs/testing/offline-field-test.md)
+- [Next-session handoff](docs/NEXT_SESSION.md)
 
 No secrets or map API keys belong in source control. Tracking will only operate during an explicitly active trip session.
