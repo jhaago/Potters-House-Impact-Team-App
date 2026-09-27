@@ -172,6 +172,7 @@ git commit -m "feat: define versioned location protocol"
 - Consumes: validated `TrackingEnvelope` from Task 2.
 - Produces: `TrackingLedger.accept(envelope, receivedAtEpochMillis, arrivalPath, suppliedByPeerId): AcceptResult`.
 - Produces: `TrackingLedger.snapshot(nowEpochMillis): List<MemberTrackingState>`.
+- Produces: `TrackingLedger.syncCandidates(nowEpochMillis): List<ObservedEnvelope>` containing a bounded, deterministic relay window.
 - Produces freshness enum `CURRENT`, `BECOMING_STALE`, `STALE`.
 
 - [ ] **Step 1: Write failing ordering and deduplication tests**
@@ -184,7 +185,7 @@ Initial proof thresholds are current through 30 seconds, becoming stale after 30
 
 - [ ] **Step 3: Implement the in-memory ledger**
 
-Index accepted locations by `originDeviceId`; maintain record-ID deduplication and member-to-current-device projection. Preserve local receipt time and arrival path independently of origin time.
+Index accepted locations by `originDeviceId`; maintain record-ID deduplication and member-to-current-device projection. Preserve local receipt time and arrival path independently of origin time. Retain a bounded deterministic sync-candidate window: the newest accepted location per origin plus up to four immediately preceding unexpired locations per origin.
 
 - [ ] **Step 4: Implement freshness reduction**
 
@@ -214,7 +215,7 @@ git commit -m "feat: add deterministic tracking ledger"
 - Create: `shared/src/commonTest/kotlin/org/pottershouse/impactteam/sync/MeshScenarioTest.kt`
 
 **Interfaces:**
-- Consumes: accepted envelope history and peer/source metadata from Task 3.
+- Consumes: `TrackingLedger.syncCandidates(nowEpochMillis)` and peer/source metadata from Task 3.
 - Produces: `SyncDigest(highestSequenceByOrigin: Map<DeviceId, Long>, importantRecordIds: Set<RecordId>)`.
 - Produces: `SyncPlanner.plan(peerId, peerDigest, nowEpochMillis, maxRecords = 50, maxBytes = 64 * 1024): SyncBatch`.
 - Produces: `RelayPolicy.canOffer(observedEnvelope, peerId, nowEpochMillis): Boolean`.
