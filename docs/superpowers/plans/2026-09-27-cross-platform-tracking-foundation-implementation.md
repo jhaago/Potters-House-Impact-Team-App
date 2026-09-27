@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Android `minSdk = 26`, `compileSdk = 36`, and `targetSdk = 36`.
+- Android `minSdk = 26`, `compileSdk = 37`, and `targetSdk = 36`. The compile SDK was raised during execution because Compose BOM `2026.09.00` resolves artifacts that require API 37; this does not opt the app into Android 37 runtime behavior.
 - iOS deployment target is 16.0; create `iosArm64` and `iosSimulatorArm64` shared targets.
 - Use JDK 17 and pin every dependency in `gradle/libs.versions.toml`; no dynamic or beta versions.
 - `commonMain` must not import Android, Google Play services, Swift, UIKit, CoreLocation, or MapKit types.
@@ -146,7 +146,7 @@ Return typed failures rather than throwing for untrusted peer input. Cap encoded
 
 - [ ] **Step 5: Verify**
 
-Run: `./gradlew :shared:allTests --tests "*Envelope*"`  
+Run: `./gradlew :shared:jvmTest --tests "*Envelope*" && ./gradlew :shared:allTests`
 Expected: all codec and validation tests PASS on JVM/Android unit target and iOS simulator test target where available.
 
 - [ ] **Step 6: Commit**

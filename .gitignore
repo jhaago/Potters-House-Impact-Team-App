@@ -1,0 +1,12 @@
+.worktrees/
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+*.iml
+.idea/
+DerivedData/
+*.xcuserstate
+.DS_Store
+.superpowers/
