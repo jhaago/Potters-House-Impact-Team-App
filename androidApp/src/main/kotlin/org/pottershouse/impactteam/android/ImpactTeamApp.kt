@@ -155,23 +155,29 @@ private fun missingTrackingPermissions(context: Context): Set<TrackingPermission
     ) {
         add(TrackingPermission.BLUETOOTH)
     }
+    if (
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        !context.hasPermission(Manifest.permission.NEARBY_WIFI_DEVICES)
+    ) {
+        add(TrackingPermission.LOCAL_NETWORK)
+    }
 }
 
-private fun foregroundPermissionNames(context: Context): List<String> = buildList {
-    if (!context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-        add(Manifest.permission.ACCESS_FINE_LOCATION)
+internal fun runtimePermissionNamesForSdk(sdkInt: Int): List<String> = buildList {
+    add(Manifest.permission.ACCESS_FINE_LOCATION)
+    if (sdkInt >= Build.VERSION_CODES.S) {
+        add(Manifest.permission.BLUETOOTH_SCAN)
+        add(Manifest.permission.BLUETOOTH_CONNECT)
+        add(Manifest.permission.BLUETOOTH_ADVERTISE)
     }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !context.hasPermission(Manifest.permission.POST_NOTIFICATIONS)) {
+    if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
         add(Manifest.permission.POST_NOTIFICATIONS)
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        listOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE,
-        ).filterTo(this) { !context.hasPermission(it) }
+        add(Manifest.permission.NEARBY_WIFI_DEVICES)
     }
 }
+
+private fun foregroundPermissionNames(context: Context): List<String> =
+    runtimePermissionNamesForSdk(Build.VERSION.SDK_INT).filter { !context.hasPermission(it) }
 
 private fun Context.hasPermission(permission: String): Boolean =
     ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
