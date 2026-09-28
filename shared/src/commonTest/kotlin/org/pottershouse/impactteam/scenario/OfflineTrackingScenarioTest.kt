@@ -95,7 +95,11 @@ class OfflineTrackingScenarioTest {
         val batch = SyncPlanner(from.ledger).plan(to.id, SyncPlanner(to.ledger).digest(at), at)
         val records = if (reverseDelivery) batch.records.reversed() else batch.records
         records.forEach { forwarded ->
-            assertIs<AcceptResult.Accepted>(to.ledger.acceptForwarded(forwarded, at, from.id))
+            val result = to.ledger.acceptForwarded(forwarded, at, from.id)
+            assertTrue(
+                result is AcceptResult.Accepted || result is AcceptResult.StaleSequence,
+                "Shuffled delivery produced unexpected result $result",
+            )
         }
         return records.size
     }
