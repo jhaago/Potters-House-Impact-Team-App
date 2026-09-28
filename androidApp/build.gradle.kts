@@ -43,7 +43,9 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.play.services.location)
+    implementation(libs.play.services.nearby)
     testImplementation(libs.junit4)
     testImplementation(kotlin("test-junit"))
+    testImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.compose.ui.tooling)
 }

@@ -12,6 +12,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.pottershouse.impactteam.android.nearby.GoogleNearbyClient
+import org.pottershouse.impactteam.android.nearby.NearbyPeerTransport
 import org.pottershouse.impactteam.domain.ActiveTripSession
 import org.pottershouse.impactteam.domain.DeviceId
 import org.pottershouse.impactteam.domain.MemberId
@@ -26,6 +28,7 @@ class TrackingForegroundService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var database: ImpactTeamDatabase
     private lateinit var controller: ActiveTripController
+    private lateinit var runtime: TrackingServiceRuntime
 
     override fun onCreate() {
         super.onCreate()
@@ -39,6 +42,15 @@ class TrackingForegroundService : Service() {
             ),
             acceptRecord = repository::accept,
             scope = serviceScope,
+        )
+        runtime = TrackingServiceRuntime(
+            loadLedger = repository::loadLedger,
+            acceptRecord = repository::accept,
+            startLocation = { controller.start(it) },
+            stopLocation = controller::stop,
+            peerTransport = NearbyPeerTransport(GoogleNearbyClient(this), serviceScope),
+            scope = serviceScope,
+            nowEpochMillis = System::currentTimeMillis,
         )
     }
 
@@ -56,17 +68,18 @@ class TrackingForegroundService : Service() {
             startForeground(
                 TrackingNotificationFactory.NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
             )
         } else {
             startForeground(TrackingNotificationFactory.NOTIFICATION_ID, notification)
         }
-        serviceScope.launch { controller.start(session) }
+        serviceScope.launch { runtime.start(session) }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
-        runBlocking { controller.stop("Tracking service stopped") }
+        runBlocking { runtime.stop("Tracking service stopped") }
         serviceScope.cancel()
         database.close()
         super.onDestroy()
