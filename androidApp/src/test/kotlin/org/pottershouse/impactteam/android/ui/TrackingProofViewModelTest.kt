@@ -14,6 +14,7 @@ import org.pottershouse.impactteam.domain.TrackingIssue
 import org.pottershouse.impactteam.domain.TrackingPermission
 import org.pottershouse.impactteam.domain.TripId
 import org.pottershouse.impactteam.protocol.LocationPayload
+import org.pottershouse.impactteam.protocol.MessagePriority
 import org.pottershouse.impactteam.protocol.TrackingEnvelope
 import org.pottershouse.impactteam.state.AcceptResult
 import org.pottershouse.impactteam.state.ArrivalPath
@@ -170,6 +171,7 @@ class TrackingProofViewModelTest {
         relayCount: Int = 0,
     ): MemberTrackingState {
         val envelope = TrackingEnvelope(
+            protocolVersion = 1,
             recordId = RecordId("record-$memberId"),
             tripId = TripId("trip-zim-2027"),
             teamId = TeamId("blue"),
@@ -177,6 +179,7 @@ class TrackingProofViewModelTest {
             originDeviceId = DeviceId("device-$memberId"),
             originSequence = 1,
             createdAtEpochMillis = now - 12_000,
+            priority = MessagePriority.NORMAL,
             expiresAtEpochMillis = now + 60_000,
             payload = LocationPayload(
                 latitude = -17.8252,
