@@ -15,11 +15,17 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :shared:allTests :shared:kspAndroid :androidApp:assembleDebug
+      - run: ./gradlew :shared:allTests :shared:kspAndroid :androidApp:testDebugUnitTest :androidApp:assembleDebug
       - name: Verify Room schemas are checked in
         run: |
           git add --intent-to-add shared/schemas
           git diff --exit-code -- shared/schemas
+      - name: Publish Android proof APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: impact-team-android-debug-apk
+          path: androidApp/build/outputs/apk/debug/androidApp-debug.apk
+          if-no-files-found: error
 
   ios:
     runs-on: macos-latest

@@ -14,6 +14,8 @@ sealed interface TrackingIssue {
     data object LocationServicesDisabled : TrackingIssue
 
     data object BatteryRestricted : TrackingIssue
+
+    data class LocationUnavailable(val reason: String) : TrackingIssue
 }
 
 sealed interface TrackingHealth {

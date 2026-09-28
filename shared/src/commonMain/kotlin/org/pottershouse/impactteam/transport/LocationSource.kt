@@ -3,6 +3,7 @@ package org.pottershouse.impactteam.transport
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import org.pottershouse.impactteam.domain.GeoPoint
+import org.pottershouse.impactteam.domain.TrackingPermission
 import org.pottershouse.impactteam.protocol.LocationPayload
 
 data class LocationSample(
@@ -26,6 +27,10 @@ data class LocationRequestPolicy(
 
 sealed interface LocationAvailability {
     data object Available : LocationAvailability
+
+    data class PermissionMissing(val permission: TrackingPermission) : LocationAvailability
+
+    data object ServicesDisabled : LocationAvailability
 
     data class Unavailable(val reason: String) : LocationAvailability
 }

@@ -41,5 +41,9 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
     implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.play.services.location)
+    testImplementation(libs.junit4)
+    testImplementation(kotlin("test-junit"))
     debugImplementation(libs.compose.ui.tooling)
 }
