@@ -13,23 +13,26 @@ Continue on `feature/offline-tracking-proof`. Do not merge into `main` until the
 - Tests for wire compatibility, invalid peer input, sequence ordering, clock skew, device-identity rotation, relay limits, and A→B→C→leader propagation.
 - Android CI build and macOS iPhone build workflow.
 - CI-published Android debug APK artifact named `impact-team-android-debug-apk`.
+- Android proof setup, explicit start/stop, truthful member freshness/source rows, authentication/failure diagnostics, and redacted diagnostic copy.
+- Current Android Nearby permissions, including nearby Wi-Fi on Android 13+.
+- A ten-device shared simulation covering shuffled delivery, duplicates, future wall clocks, stale replay, and forced multi-hop propagation.
 - `iosArm64` and `iosSimulatorArm64` shared targets. Room 3.0.3 does not publish a legacy Intel-simulator artifact.
 
-The current APK contains background location and real Android phone-to-phone discovery/exchange, but the proof UI does not start or diagnose it yet. It is not yet a practical field-test build.
+The current APK is ready for controlled Android field testing. Code and CI do not prove real screen-off radio reliability; only the documented physical tests can supply that evidence.
 
 ## Start here
 
-Begin Task 8 in `docs/superpowers/plans/2026-09-27-cross-platform-tracking-foundation-implementation.md`: the member-state, setup, and diagnostics proof UI.
+Run the physical Android proof in `docs/testing/android-offline-tracking-field-test.md`. Start with two phones, then four-phone forced relay, then 5–10 phones only after the smaller gates pass.
 
 Before implementation:
 
-1. Inspect the latest GitHub Actions run for this branch.
-2. Confirm both `shared-and-android` and `ios` jobs pass.
-3. Read the Task 8 brief and existing SDD ledger.
-4. Preserve explicit trip activation and make Stop Tracking continuously available while active.
-5. Surface Nearby authentication digits, connection failures, peer counts, record freshness, and arrival path without displaying coordinates in ordinary diagnostics.
+1. Download the APK from the latest successful `Verify` run.
+2. Copy `docs/testing/android-offline-tracking-results-template.md` for the test day.
+3. Record every device in `docs/testing/device-capability-matrix.md` from observed results only.
+4. File defects with phone model, OS, screen state, elapsed time, last exchange age, and redacted diagnostics.
+5. Do not merge into `main` until the foundation branch receives its final review and physical-test findings are understood.
 
-After the diagnostics UI, proceed to the Android multi-phone field test in `docs/testing/offline-field-test.md`, then implement the iPhone Nearby/Core Location adapters and repeat the mixed-platform gate.
+After the Android proof, implement the iPhone Nearby/Core Location adapters and repeat the direct, locked-screen, and mixed-platform gates on physical iPhones.
 
 ## iPhone constraint
 

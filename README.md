@@ -15,9 +15,11 @@ iOS has stricter background peer-discovery limits than Android. The architecture
 
 Offline records use Room 3 with the bundled SQLite driver on Android and iPhone. The supported Apple targets are physical iPhones (`iosArm64`) and Apple-silicon simulators (`iosSimulatorArm64`). Room 3.0.3 does not publish a legacy Intel-simulator binary; that simulator limitation does not affect physical iPhones.
 
-## Current scope
+## Current proof scope
 
-This branch establishes the cross-platform shells and begins the offline tracking proof. It is intentionally not a polished user interface.
+The foundation branch now contains a usable Android field-test harness: explicit proof-trip setup, foreground/background location capture, persistent last-known state, Google Nearby peer exchange, bounded store-and-forward relay, truthful freshness labels, and redacted diagnostics. It is intentionally an engineering proof rather than the finished member or leader interface.
+
+The iPhone shell and shared Kotlin framework compile, but native iPhone Core Location and Nearby adapters are not implemented yet. Android results must not be assumed to apply to locked iPhones.
 
 ## Build
 
@@ -28,8 +30,10 @@ Requirements:
 - Xcode 16 or newer on macOS for iOS
 
 ```bash
-./gradlew :shared:allTests :shared:kspAndroid :androidApp:assembleDebug
+./gradlew clean :shared:allTests :shared:kspAndroid :androidApp:testDebugUnitTest :androidApp:compileDebugAndroidTestKotlin :androidApp:lintDebug :androidApp:assembleDebug
 ```
+
+GitHub Actions publishes `impact-team-android-debug-apk` from every successful feature-branch verification run. The APK is for controlled proof testing only; it uses local test identities and automatically accepts Nearby connections after surfacing authentication digits.
 
 Open `iosApp/ImpactTeamApp.xcodeproj` in Xcode to run the iPhone shell. The Xcode build phase builds and embeds the shared Kotlin framework.
 
@@ -37,7 +41,9 @@ Open `iosApp/ImpactTeamApp.xcodeproj` in Xcode to run the iPhone shell. The Xcod
 
 - [Architecture design](docs/superpowers/specs/2026-09-27-impact-team-app-architecture-design.md)
 - [Implementation plan](docs/superpowers/plans/2026-09-27-cross-platform-tracking-foundation-implementation.md)
-- [Offline field-test procedure](docs/testing/offline-field-test.md)
+- [Android offline field-test procedure](docs/testing/android-offline-tracking-field-test.md)
+- [Field-test results template](docs/testing/android-offline-tracking-results-template.md)
+- [Device capability matrix](docs/testing/device-capability-matrix.md)
 - [Next-session handoff](docs/NEXT_SESSION.md)
 
 No secrets or map API keys belong in source control. Tracking will only operate during an explicitly active trip session.
