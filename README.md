@@ -13,6 +13,8 @@ Android and iPhone are both product platforms. Android is the initial field-test
 
 iOS has stricter background peer-discovery limits than Android. The architecture therefore promises transport-independent store-and-forward delivery, not identical radio behavior on both operating systems. The iPhone proof must be tested early on real devices and must not be deferred until the Android product is complete.
 
+Offline records use Room 3 with the bundled SQLite driver on Android and iPhone. The supported Apple targets are physical iPhones (`iosArm64`) and Apple-silicon simulators (`iosSimulatorArm64`). Room 3.0.3 does not publish a legacy Intel-simulator binary; that simulator limitation does not affect physical iPhones.
+
 ## Current scope
 
 This branch establishes the cross-platform shells and begins the offline tracking proof. It is intentionally not a polished user interface.
@@ -26,8 +28,7 @@ Requirements:
 - Xcode 16 or newer on macOS for iOS
 
 ```bash
-./gradlew :shared:jvmTest
-./gradlew :androidApp:assembleDebug
+./gradlew :shared:allTests :shared:kspAndroid :androidApp:assembleDebug
 ```
 
 Open `iosApp/ImpactTeamApp.xcodeproj` in Xcode to run the iPhone shell. The Xcode build phase builds and embeds the shared Kotlin framework.

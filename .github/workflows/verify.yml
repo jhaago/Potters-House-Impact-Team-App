@@ -15,7 +15,11 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :shared:jvmTest :androidApp:assembleDebug
+      - run: ./gradlew :shared:allTests :shared:kspAndroid :androidApp:assembleDebug
+      - name: Verify Room schemas are checked in
+        run: |
+          git add --intent-to-add shared/schemas
+          git diff --exit-code -- shared/schemas
 
   ios:
     runs-on: macos-latest

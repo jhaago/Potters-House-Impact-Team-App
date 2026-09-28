@@ -64,6 +64,16 @@ class TrackingLedgerTest {
     }
 
     @Test
+    fun higherSequenceFromSameOriginSurvivesReceiptClockCorrection() {
+        val ledger = TrackingLedger()
+        ledger.accept(envelope(sequence = 7), receivedAt + 100, ArrivalPath.LOCAL, null)
+
+        ledger.accept(envelope(sequence = 8), receivedAt, ArrivalPath.LOCAL, null)
+
+        assertEquals(8, ledger.snapshot(receivedAt + 100).single().observed.envelope.originSequence)
+    }
+
+    @Test
     fun newDeviceIdentityStartsIndependentSequence() {
         val ledger = TrackingLedger()
         ledger.accept(envelope(sequence = 50, deviceId = "old-device"), receivedAt, ArrivalPath.INTERNET, null)

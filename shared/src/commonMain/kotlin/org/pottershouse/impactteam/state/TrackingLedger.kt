@@ -44,6 +44,15 @@ class TrackingLedger(
         recentPeerIds = (forwarded.recentPeerIds + suppliedByPeerId).distinct().takeLast(MAX_ROUTE_PEERS),
     )
 
+    fun restore(observed: ObservedEnvelope): AcceptResult = acceptInternal(
+        envelope = observed.envelope,
+        receivedAtEpochMillis = observed.receivedAtEpochMillis,
+        arrivalPath = observed.arrivalPath,
+        suppliedByPeerId = observed.suppliedByPeerId,
+        relayCount = observed.relayCount,
+        recentPeerIds = observed.recentPeerIds,
+    )
+
     private fun acceptInternal(
         envelope: TrackingEnvelope,
         receivedAtEpochMillis: Long,
@@ -74,7 +83,13 @@ class TrackingLedger(
         while (originHistory.size > retainedRecordsPerOrigin) originHistory.removeLast()
 
         val previous = currentByMember[envelope.memberId]
-        if (previous == null || receivedAtEpochMillis >= previous.receivedAtEpochMillis) {
+        val shouldReplaceCurrent = previous == null ||
+            if (previous.envelope.originDeviceId == envelope.originDeviceId) {
+                envelope.originSequence > previous.envelope.originSequence
+            } else {
+                receivedAtEpochMillis >= previous.receivedAtEpochMillis
+            }
+        if (shouldReplaceCurrent) {
             currentByMember[envelope.memberId] = observed
         }
 

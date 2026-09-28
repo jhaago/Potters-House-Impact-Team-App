@@ -107,7 +107,7 @@ Use **Kotlin Multiplatform for shared business logic**, with native platform she
 - **Android services:** native Kotlin foreground service, location, notifications, Nearby Connections
 - **iOS UI:** SwiftUI
 - **iOS services:** native Swift location/background integration, notifications, Nearby Connections initially
-- **Persistence:** a multiplatform-compatible local database behind repository interfaces
+- **Persistence:** Room 3 with bundled SQLite behind repository interfaces
 - **Serialization:** versioned, deterministic wire models with cross-platform fixture tests
 
 This balances shared protocol correctness with native control over platform lifecycle, permissions, radios, maps, and accessibility.
@@ -121,6 +121,7 @@ This balances shared protocol correctness with native control over platform life
 - The iOS target must compile in continuous integration from the initial scaffold.
 - Features are not considered V1 complete until their shared logic has platform-neutral tests and both platform adapters have an explicit status.
 - Shared UI is not required. Native UI is preferred where it improves platform behaviour or reduces lifecycle risk.
+- Stable Room 3.0.3 supports physical iPhone arm64 and Apple-silicon simulator arm64, but not the legacy Intel iOS simulator target. CI therefore verifies `iosSimulatorArm64`; real-device `iosArm64` remains configured and is the product target.
 
 ## 6. Architecture
 
