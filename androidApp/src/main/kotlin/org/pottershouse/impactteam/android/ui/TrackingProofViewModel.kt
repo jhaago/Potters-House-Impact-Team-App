@@ -21,6 +21,10 @@ import org.pottershouse.impactteam.state.AcceptResult
 import org.pottershouse.impactteam.state.ArrivalPath
 import org.pottershouse.impactteam.state.Freshness
 import org.pottershouse.impactteam.state.MemberTrackingState
+import org.pottershouse.impactteam.state.MonitoredSeparationAssessment
+import org.pottershouse.impactteam.state.SeparationAnalyzer
+import org.pottershouse.impactteam.state.SeparationLevel
+import org.pottershouse.impactteam.state.SeparationMonitor
 import org.pottershouse.impactteam.transport.PeerId
 import org.pottershouse.impactteam.transport.TransportEvent
 import kotlin.math.roundToInt
@@ -52,6 +56,10 @@ data class MemberStateRowModel(
     val accuracyLabel: String,
     val arrivalLabel: String,
     val isLastKnown: Boolean,
+    val separationLevel: SeparationLevel = SeparationLevel.INSUFFICIENT_DATA,
+    val rawSeparationLevel: SeparationLevel = SeparationLevel.INSUFFICIENT_DATA,
+    val separationDistanceMeters: Int? = null,
+    val separationMovingAway: Boolean = false,
 )
 
 data class AuthenticationCodeUi(
@@ -188,6 +196,8 @@ class TrackingProofViewModel(
     )
     val state: StateFlow<TrackingProofUiState> = mutableState.asStateFlow()
 
+    private val separationAnalyzer = SeparationAnalyzer()
+    private var separationMonitor = SeparationMonitor()
     private var activeSession: ActiveTripSession? = null
     private var pollingJob: Job? = null
 
@@ -226,6 +236,7 @@ class TrackingProofViewModel(
 
         val session = setup.toSession(nowEpochMillis())
         activeSession = session
+        separationMonitor = SeparationMonitor()
         mutableState.update {
             it.copy(health = TrackingHealth.Active(session, null), setupError = null)
         }
@@ -251,8 +262,13 @@ class TrackingProofViewModel(
     }
 
     private suspend fun refreshMembers(tripId: TripId) {
-        val rows = loadMembers(tripId)
-            .map { it.toRow(nowEpochMillis()) }
+        val now = nowEpochMillis()
+        val memberStates = loadMembers(tripId)
+        val separationByMember = separationMonitor
+            .update(separationAnalyzer.assess(memberStates), now)
+            .associateBy { it.memberId }
+        val rows = memberStates
+            .map { member -> member.toRow(now, separationByMember[member.memberId]) }
             .sortedBy { it.memberId }
         mutableState.update { it.copy(members = rows) }
     }
@@ -262,7 +278,10 @@ class TrackingProofViewModel(
     }
 }
 
-private fun MemberTrackingState.toRow(nowEpochMillis: Long): MemberStateRowModel {
+private fun MemberTrackingState.toRow(
+    nowEpochMillis: Long,
+    separation: MonitoredSeparationAssessment?,
+): MemberStateRowModel {
     val payload = observed.envelope.payload
     return MemberStateRowModel(
         memberId = memberId.value,
@@ -281,6 +300,10 @@ private fun MemberTrackingState.toRow(nowEpochMillis: Long): MemberStateRowModel
             ArrivalPath.RELAYED -> "Relayed (${observed.relayCount} hops)"
         },
         isLastKnown = freshness == Freshness.STALE,
+        separationLevel = separation?.level ?: SeparationLevel.INSUFFICIENT_DATA,
+        rawSeparationLevel = separation?.rawLevel ?: SeparationLevel.INSUFFICIENT_DATA,
+        separationDistanceMeters = separation?.evidenceDistanceMeters?.roundToInt(),
+        separationMovingAway = separation?.movingAway == true,
     )
 }
 
