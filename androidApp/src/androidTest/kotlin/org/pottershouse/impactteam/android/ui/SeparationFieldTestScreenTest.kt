@@ -3,6 +3,8 @@ package org.pottershouse.impactteam.android.ui
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
@@ -45,7 +47,7 @@ class SeparationFieldTestScreenTest {
         }
 
         compose.onNodeWithText("Separation field test").assertIsDisplayed()
-        compose.onNodeWithText("member-a").performClick()
+        compose.onAllNodesWithText("member-a").onFirst().performClick()
         compose.onNodeWithText("START FIELD TEST").performClick()
 
         assertEquals("member-a", startedMember)
