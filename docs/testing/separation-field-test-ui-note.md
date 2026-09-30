@@ -1,1 +1,0 @@
-Temporary implementation note: the in-app separation field test remains a proof-only helper. It records redacted milestone timing in memory and must not alter tracking transport, persistence, or production alert policy.
