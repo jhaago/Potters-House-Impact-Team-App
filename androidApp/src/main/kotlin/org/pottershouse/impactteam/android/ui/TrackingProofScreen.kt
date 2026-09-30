@@ -32,10 +32,19 @@ fun TrackingProofScreen(
     onStop: () -> Unit,
     onRequestPermissions: () -> Unit,
     onCopyDiagnostics: (String) -> Unit,
+    onStartSeparationFieldTest: (String) -> Unit = {},
+    onResetSeparationFieldTest: () -> Unit = {},
 ) {
     var confirmStart by remember { mutableStateOf(false) }
     var showDiagnostics by remember { mutableStateOf(false) }
+    var selectedFieldTestMemberId by remember(state.setup.tripId, state.setup.teamId) {
+        mutableStateOf<String?>(null)
+    }
     val isTracking = state.health is TrackingHealth.Active || state.health is TrackingHealth.Degraded
+    val fieldTestMembers = state.members.filter { it.memberId != state.setup.memberId }
+    val selectedFieldTestMember = selectedFieldTestMemberId?.takeIf { selected ->
+        fieldTestMembers.any { it.memberId == selected }
+    } ?: fieldTestMembers.singleOrNull()?.memberId
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -84,6 +93,19 @@ fun TrackingProofScreen(
                 }
             }
         }
+        if (isTracking) {
+            item {
+                SeparationFieldTestCard(
+                    fieldTest = state.separationFieldTest,
+                    members = fieldTestMembers,
+                    selectedMemberId = selectedFieldTestMember,
+                    onMemberSelected = { selectedFieldTestMemberId = it },
+                    onStart = { selectedFieldTestMember?.let(onStartSeparationFieldTest) },
+                    onReset = onResetSeparationFieldTest,
+                    onCopy = { onCopyDiagnostics(state.separationFieldTest.redactedSummary()) },
+                )
+            }
+        }
         item {
             OutlinedButton(
                 onClick = { showDiagnostics = !showDiagnostics },
@@ -118,6 +140,82 @@ fun TrackingProofScreen(
         )
     }
 }
+
+@Composable
+private fun SeparationFieldTestCard(
+    fieldTest: SeparationFieldTestState,
+    members: List<MemberStateRowModel>,
+    selectedMemberId: String?,
+    onMemberSelected: (String) -> Unit,
+    onStart: () -> Unit,
+    onReset: () -> Unit,
+    onCopy: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Separation field test", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Proof-only helper. Start together, hold near 200 m for WARNING, move beyond 275 m for SERIOUS, then return inside 140 m until recovered.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            if (!fieldTest.isActive) {
+                if (members.isEmpty()) {
+                    Text("Waiting for another team member to appear.")
+                } else {
+                    Text("Choose the teammate who will move away from the group.")
+                    members.forEach { member ->
+                        OutlinedButton(
+                            onClick = { onMemberSelected(member.memberId) },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                if (member.memberId == selectedMemberId) {
+                                    "Selected: ${member.memberId}"
+                                } else {
+                                    member.memberId
+                                },
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = onStart,
+                        enabled = selectedMemberId != null,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("START FIELD TEST")
+                    }
+                }
+            } else {
+                Text("Testing ${fieldTest.memberId}", style = MaterialTheme.typography.titleMedium)
+                Text("Within range: ${fieldTest.withinRangeAtEpochMillis.milestoneStatus()}")
+                Text("Watching: ${fieldTest.watchingAtEpochMillis.milestoneStatus()}")
+                Text("WARNING: ${fieldTest.warningAtEpochMillis.milestoneStatus()}")
+                Text("SERIOUS: ${fieldTest.seriousAtEpochMillis.milestoneStatus()}")
+                Text("Recovered: ${fieldTest.recoveredAtEpochMillis.milestoneStatus()}")
+                Text(
+                    if (fieldTest.isComplete) "Field test complete" else "Field test in progress",
+                    color = if (fieldTest.isComplete) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                )
+                Button(onClick = onCopy, modifier = Modifier.fillMaxWidth()) {
+                    Text("COPY FIELD TEST RESULT")
+                }
+                OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth()) {
+                    Text("RESET FIELD TEST")
+                }
+            }
+        }
+    }
+}
+
+private fun Long?.milestoneStatus(): String = if (this == null) "pending" else "observed"
 
 private fun TrackingHealth.displayName(): String = when (this) {
     TrackingHealth.Idle -> "Not started"
