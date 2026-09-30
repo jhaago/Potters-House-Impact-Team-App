@@ -69,7 +69,6 @@ class SeparationFieldTestRecorder {
         }
 
         if (
-            next.withinRangeAtEpochMillis != null &&
             next.watchingAtEpochMillis == null &&
             (rawLevel == SeparationLevel.WARNING || rawLevel == SeparationLevel.SERIOUS)
         ) {
@@ -77,7 +76,6 @@ class SeparationFieldTestRecorder {
         }
 
         if (
-            next.watchingAtEpochMillis != null &&
             next.warningAtEpochMillis == null &&
             stableLevel == SeparationLevel.WARNING
         ) {
@@ -85,7 +83,6 @@ class SeparationFieldTestRecorder {
         }
 
         if (
-            next.warningAtEpochMillis != null &&
             next.seriousAtEpochMillis == null &&
             stableLevel == SeparationLevel.SERIOUS
         ) {
