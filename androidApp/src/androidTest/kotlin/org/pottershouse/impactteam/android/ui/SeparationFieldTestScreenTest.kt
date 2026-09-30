@@ -7,9 +7,9 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
 import org.junit.Rule
+import org.junit.Test
 import org.pottershouse.impactteam.domain.ActiveTripSession
 import org.pottershouse.impactteam.domain.DeviceId
 import org.pottershouse.impactteam.domain.MemberId
@@ -22,7 +22,7 @@ class SeparationFieldTestScreenTest {
     val compose = createComposeRule()
 
     @Test
-    fun `tracking screen shows field test card and starts selected member`() {
+    fun trackingScreenShowsFieldTestCardAndStartsSelectedMember() {
         var startedMember: String? = null
         val state = activeState().copy(
             members = listOf(
@@ -54,7 +54,7 @@ class SeparationFieldTestScreenTest {
     }
 
     @Test
-    fun `active field test displays milestone progress and copyable summary`() {
+    fun activeFieldTestDisplaysMilestoneProgressAndCopyableSummary() {
         val state = activeState().copy(
             members = listOf(memberRow("member-a")),
             separationFieldTest = SeparationFieldTestState(
