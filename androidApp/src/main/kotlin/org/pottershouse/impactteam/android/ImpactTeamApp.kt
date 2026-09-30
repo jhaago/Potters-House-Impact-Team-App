@@ -100,6 +100,8 @@ fun ImpactTeamApp() {
                     }
                 },
                 onCopyDiagnostics = { clipboard.setText(AnnotatedString(it)) },
+                onStartSeparationFieldTest = viewModel::startSeparationFieldTest,
+                onResetSeparationFieldTest = viewModel::resetSeparationFieldTest,
             )
         }
     }
