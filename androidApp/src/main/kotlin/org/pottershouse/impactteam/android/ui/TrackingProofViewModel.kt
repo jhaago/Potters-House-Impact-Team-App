@@ -94,6 +94,7 @@ data class TrackingProofUiState(
     val health: TrackingHealth = TrackingHealth.Idle,
     val members: List<MemberStateRowModel> = emptyList(),
     val diagnostics: DiagnosticsUiState = DiagnosticsUiState(),
+    val separationFieldTest: SeparationFieldTestState = SeparationFieldTestState(),
     val setupError: String? = null,
 )
 
@@ -198,6 +199,7 @@ class TrackingProofViewModel(
 
     private val separationAnalyzer = SeparationAnalyzer()
     private var separationMonitor = SeparationMonitor()
+    private val separationFieldTestRecorder = SeparationFieldTestRecorder()
     private var activeSession: ActiveTripSession? = null
     private var pollingJob: Job? = null
 
@@ -237,8 +239,13 @@ class TrackingProofViewModel(
         val session = setup.toSession(nowEpochMillis())
         activeSession = session
         separationMonitor = SeparationMonitor()
+        separationFieldTestRecorder.reset()
         mutableState.update {
-            it.copy(health = TrackingHealth.Active(session, null), setupError = null)
+            it.copy(
+                health = TrackingHealth.Active(session, null),
+                separationFieldTest = SeparationFieldTestState(),
+                setupError = null,
+            )
         }
         startTracking(session)
         pollingJob?.cancel()
@@ -256,9 +263,37 @@ class TrackingProofViewModel(
         pollingJob = null
         stopTracking()
         activeSession = null
+        separationFieldTestRecorder.reset()
         mutableState.update {
-            it.copy(health = TrackingHealth.Stopped("Stopped by member"))
+            it.copy(
+                health = TrackingHealth.Stopped("Stopped by member"),
+                separationFieldTest = SeparationFieldTestState(),
+            )
         }
+    }
+
+    fun startSeparationFieldTest(memberId: String) {
+        if (activeSession == null) return
+        val current = mutableState.value
+        val member = current.members.firstOrNull {
+            it.memberId == memberId && it.memberId != current.setup.memberId
+        } ?: return
+
+        val now = nowEpochMillis()
+        separationFieldTestRecorder.start(member.memberId, now)
+        separationFieldTestRecorder.observe(
+            stableLevel = member.separationLevel,
+            rawLevel = member.rawSeparationLevel,
+            observedAtEpochMillis = now,
+        )
+        mutableState.update {
+            it.copy(separationFieldTest = separationFieldTestRecorder.snapshot())
+        }
+    }
+
+    fun resetSeparationFieldTest() {
+        separationFieldTestRecorder.reset()
+        mutableState.update { it.copy(separationFieldTest = SeparationFieldTestState()) }
     }
 
     private suspend fun refreshMembers(tripId: TripId) {
@@ -270,7 +305,23 @@ class TrackingProofViewModel(
         val rows = memberStates
             .map { member -> member.toRow(now, separationByMember[member.memberId]) }
             .sortedBy { it.memberId }
-        mutableState.update { it.copy(members = rows) }
+
+        separationFieldTestRecorder.snapshot().memberId?.let { targetMemberId ->
+            rows.firstOrNull { it.memberId == targetMemberId }?.let { target ->
+                separationFieldTestRecorder.observe(
+                    stableLevel = target.separationLevel,
+                    rawLevel = target.rawSeparationLevel,
+                    observedAtEpochMillis = now,
+                )
+            }
+        }
+
+        mutableState.update {
+            it.copy(
+                members = rows,
+                separationFieldTest = separationFieldTestRecorder.snapshot(),
+            )
+        }
     }
 
     private companion object {
