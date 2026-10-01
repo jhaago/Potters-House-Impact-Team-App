@@ -4,7 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.pottershouse.impactteam.domain.ActiveTripSession
 import org.pottershouse.impactteam.protocol.EnvelopeValidator
@@ -19,12 +21,19 @@ class TransportRouter(
     private val transport: PeerTransport,
     private val scope: CoroutineScope,
     private val nowEpochMillis: () -> Long,
-    private val digestProvider: () -> SyncDigest,
-    private val batchPlanner: (PeerId, SyncDigest) -> SyncBatch,
+    private val digestProvider: suspend () -> SyncDigest,
+    private val batchPlanner: suspend (PeerId, SyncDigest) -> SyncBatch,
     private val acceptRecord: suspend (ObservedEnvelope) -> AcceptResult,
+    private val syncIntervalMillis: Long = DEFAULT_SYNC_INTERVAL_MILLIS,
 ) {
     private var activeSession: ActiveTripSession? = null
     private var eventJob: Job? = null
+    private var syncJob: Job? = null
+    private val connectedPeers = mutableSetOf<PeerId>()
+
+    init {
+        require(syncIntervalMillis > 0)
+    }
 
     suspend fun start(session: ActiveTripSession): Boolean {
         if (activeSession == session && eventJob?.isActive == true) return false
@@ -35,32 +44,50 @@ class TransportRouter(
                 runCatching { process(session, event) }
             }
         }
+        syncJob = scope.launch {
+            while (isActive && activeSession == session) {
+                delay(syncIntervalMillis)
+                connectedPeers.toList().forEach { peerId ->
+                    runCatching { sendDigest(peerId) }
+                }
+            }
+        }
         transport.start(session)
         return true
     }
 
     suspend fun stop(): Boolean {
         if (activeSession == null) return false
+        syncJob?.cancelAndJoin()
+        syncJob = null
         eventJob?.cancelAndJoin()
         eventJob = null
         transport.stop()
+        connectedPeers.clear()
         activeSession = null
         return true
     }
 
     private suspend fun process(session: ActiveTripSession, event: TransportEvent) {
         when (event) {
-            is TransportEvent.Connected -> transport.send(
-                event.peerId,
-                PeerMessage.Digest(digestProvider()),
-            )
+            is TransportEvent.Connected -> {
+                connectedPeers += event.peerId
+                sendDigest(event.peerId)
+            }
             is TransportEvent.MessageReceived -> processMessage(session, event.peerId, event.message)
+            is TransportEvent.Disconnected -> connectedPeers -= event.peerId
             is TransportEvent.AuthenticationRequired,
             is TransportEvent.Discovered,
-            is TransportEvent.Disconnected,
             is TransportEvent.Failure,
             -> Unit
         }
+    }
+
+    private suspend fun sendDigest(peerId: PeerId) {
+        transport.send(
+            peerId,
+            PeerMessage.Digest(digestProvider()),
+        )
     }
 
     private suspend fun processMessage(
@@ -110,5 +137,9 @@ class TransportRouter(
                 ),
             )
         }
+    }
+
+    private companion object {
+        const val DEFAULT_SYNC_INTERVAL_MILLIS = 15_000L
     }
 }
