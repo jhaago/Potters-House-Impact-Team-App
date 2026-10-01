@@ -98,10 +98,14 @@ class TrackingLedger(
 
     fun snapshot(nowEpochMillis: Long): List<MemberTrackingState> = currentByMember
         .map { (memberId, observed) ->
+            val observedAtEpochMillis = minOf(
+                observed.receivedAtEpochMillis,
+                observed.envelope.payload.capturedAtEpochMillis,
+            )
             MemberTrackingState(
                 memberId = memberId,
                 observed = observed,
-                freshness = freshnessPolicy.classify(observed.receivedAtEpochMillis, nowEpochMillis),
+                freshness = freshnessPolicy.classify(observedAtEpochMillis, nowEpochMillis),
             )
         }
         .sortedBy { it.memberId.value }
