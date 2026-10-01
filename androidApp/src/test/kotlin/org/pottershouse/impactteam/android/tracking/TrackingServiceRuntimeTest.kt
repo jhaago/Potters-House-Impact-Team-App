@@ -13,7 +13,9 @@ import org.pottershouse.impactteam.domain.MemberId
 import org.pottershouse.impactteam.domain.RecordId
 import org.pottershouse.impactteam.domain.TeamId
 import org.pottershouse.impactteam.domain.TripId
-import org.pottershouse.impactteam.protocol.locationEnvelope
+import org.pottershouse.impactteam.protocol.LocationPayload
+import org.pottershouse.impactteam.protocol.MessagePriority
+import org.pottershouse.impactteam.protocol.TrackingEnvelope
 import org.pottershouse.impactteam.state.AcceptResult
 import org.pottershouse.impactteam.state.ArrivalPath
 import org.pottershouse.impactteam.state.ObservedEnvelope
@@ -60,12 +62,9 @@ class TrackingServiceRuntimeTest {
     fun connectedPeerDigestReloadsCurrentLedgerInsteadOfUsingStartupSnapshot() = runTest {
         val calls = mutableListOf<String>()
         val transport = FakePeerTransport(calls)
-        var loadCount = 0
+        var currentSequence = 1L
         val runtime = TrackingServiceRuntime(
-            loadLedger = {
-                loadCount += 1
-                ledgerWithSequence(loadCount.toLong())
-            },
+            loadLedger = { ledgerWithSequence(currentSequence) },
             acceptRecord = { AcceptResult.Accepted(it, replacedPrevious = false) },
             startLocation = { calls += "location:start" },
             stopLocation = { reason -> calls += "location:stop:$reason" },
@@ -75,10 +74,10 @@ class TrackingServiceRuntimeTest {
         )
 
         runtime.start(session)
+        currentSequence = 2L
         transport.emit(TransportEvent.Connected(peer))
         runCurrent()
 
-        assertEquals(2, loadCount)
         val digest = transport.sent
             .map { it.second }
             .filterIsInstance<PeerMessage.Digest>()
@@ -102,7 +101,8 @@ class TrackingServiceRuntimeTest {
         )
 
     private fun ledgerWithSequence(sequence: Long): TrackingLedger = TrackingLedger().also { ledger ->
-        val envelope = locationEnvelope().copy(
+        val envelope = TrackingEnvelope(
+            protocolVersion = 1,
             recordId = RecordId("record-$sequence"),
             tripId = session.tripId,
             teamId = session.teamId,
@@ -110,7 +110,15 @@ class TrackingServiceRuntimeTest {
             originDeviceId = session.deviceId,
             originSequence = sequence,
             createdAtEpochMillis = NOW - 1_000L,
+            priority = MessagePriority.NORMAL,
             expiresAtEpochMillis = NOW + 60_000L,
+            payload = LocationPayload(
+                latitude = -31.95,
+                longitude = 115.86,
+                capturedAtEpochMillis = NOW - 1_000L,
+                accuracyMeters = 8.0,
+                batteryPercent = 80,
+            ),
         )
         ledger.restore(
             ObservedEnvelope(
