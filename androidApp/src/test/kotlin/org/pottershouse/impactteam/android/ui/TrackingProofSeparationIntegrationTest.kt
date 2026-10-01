@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.pottershouse.impactteam.domain.ActiveTripSession
 import org.pottershouse.impactteam.domain.DeviceId
 import org.pottershouse.impactteam.domain.MemberId
 import org.pottershouse.impactteam.domain.RecordId
@@ -23,6 +22,31 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class TrackingProofSeparationIntegrationTest {
+    @Test
+    fun twoPhoneProofClassifiesNearbyPairAsWithinRange() = runTest {
+        val members = listOf(
+            memberState("amy", -31.95000, 115.86000),
+            memberState("sam", -31.94973, 115.86000),
+        )
+        val viewModel = TrackingProofViewModel(
+            scope = backgroundScope,
+            nowEpochMillis = { NOW },
+            missingPermissions = { emptySet<TrackingPermission>() },
+            startTracking = {},
+            stopTracking = {},
+            loadMembers = { members },
+            telemetry = MutableStateFlow(TrackingProofTelemetrySnapshot()),
+        )
+
+        viewModel.start(SETUP)
+        runCurrent()
+
+        viewModel.state.value.members.forEach { member ->
+            assertEquals(SeparationLevel.CLEAR, member.separationLevel)
+            assertEquals(SeparationLevel.CLEAR, member.rawSeparationLevel)
+        }
+    }
+
     @Test
     fun rawSeparationIsWatchingBeforeSustainThenPromotesToWarning() = runTest {
         var clock = NOW
