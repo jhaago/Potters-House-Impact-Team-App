@@ -91,6 +91,22 @@ class TrackingLedgerTest {
     }
 
     @Test
+    fun freshReceiptDoesNotMakeOldCapturedLocationCurrent() {
+        val ledger = TrackingLedger()
+        ledger.accept(
+            envelope(
+                sequence = 1,
+                capturedAt = receivedAt - 180_000,
+            ),
+            receivedAt,
+            ArrivalPath.DIRECT_PEER,
+            DeviceId("peer-a"),
+        )
+
+        assertEquals(Freshness.STALE, ledger.snapshot(receivedAt).single().freshness)
+    }
+
+    @Test
     fun syncCandidatesKeepNewestFivePerOriginAndExcludeExpired() {
         val ledger = TrackingLedger()
         (1L..7L).forEach { sequence ->
@@ -107,10 +123,18 @@ class TrackingLedgerTest {
         sequence: Long,
         deviceId: String = "device-1",
         createdAt: Long = 1_700_000_000_000,
-    ): TrackingEnvelope = locationEnvelope().copy(
-        recordId = RecordId("record-$deviceId-$sequence"),
-        originDeviceId = DeviceId(deviceId),
-        originSequence = sequence,
-        createdAtEpochMillis = createdAt,
-    )
+        capturedAt: Long? = null,
+    ): TrackingEnvelope {
+        val base = locationEnvelope().copy(
+            recordId = RecordId("record-$deviceId-$sequence"),
+            originDeviceId = DeviceId(deviceId),
+            originSequence = sequence,
+            createdAtEpochMillis = createdAt,
+        )
+        return if (capturedAt == null) {
+            base
+        } else {
+            base.copy(payload = base.payload.copy(capturedAtEpochMillis = capturedAt))
+        }
+    }
 }
