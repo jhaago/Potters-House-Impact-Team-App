@@ -25,6 +25,7 @@ import org.pottershouse.impactteam.state.MonitoredSeparationAssessment
 import org.pottershouse.impactteam.state.SeparationAnalyzer
 import org.pottershouse.impactteam.state.SeparationLevel
 import org.pottershouse.impactteam.state.SeparationMonitor
+import org.pottershouse.impactteam.state.SeparationPolicy
 import org.pottershouse.impactteam.transport.PeerId
 import org.pottershouse.impactteam.transport.TransportEvent
 import kotlin.math.roundToInt
@@ -197,7 +198,9 @@ class TrackingProofViewModel(
     )
     val state: StateFlow<TrackingProofUiState> = mutableState.asStateFlow()
 
-    private val separationAnalyzer = SeparationAnalyzer()
+    private val separationAnalyzer = SeparationAnalyzer(
+        SeparationPolicy(minUsableMembers = 2),
+    )
     private var separationMonitor = SeparationMonitor()
     private val separationFieldTestRecorder = SeparationFieldTestRecorder()
     private var activeSession: ActiveTripSession? = null
