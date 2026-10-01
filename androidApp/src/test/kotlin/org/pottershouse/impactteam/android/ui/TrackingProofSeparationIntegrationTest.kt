@@ -20,6 +20,7 @@ import org.pottershouse.impactteam.state.ObservedEnvelope
 import org.pottershouse.impactteam.state.SeparationLevel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class TrackingProofSeparationIntegrationTest {
     @Test
@@ -46,6 +47,42 @@ class TrackingProofSeparationIntegrationTest {
             assertEquals(SeparationLevel.CLEAR, member.separationLevel)
             assertEquals(SeparationLevel.CLEAR, member.rawSeparationLevel)
         }
+        assertTrue(
+            viewModel.state.value.members.all { member ->
+                (member.separationDistanceMeters ?: -1) in 29..31
+            },
+        )
+    }
+
+    @Test
+    fun poorAccuracyFixCannotCreateTwoPhoneSeparationAlert() = runTest {
+        val members = listOf(
+            memberState("amy", -31.95000, 115.86000),
+            memberState(
+                memberId = "sam",
+                latitude = -31.94730,
+                longitude = 115.86000,
+                accuracyMeters = 150.0,
+            ),
+        )
+        val viewModel = TrackingProofViewModel(
+            scope = backgroundScope,
+            nowEpochMillis = { NOW },
+            missingPermissions = { emptySet<TrackingPermission>() },
+            startTracking = {},
+            stopTracking = {},
+            loadMembers = { members },
+            telemetry = MutableStateFlow(TrackingProofTelemetrySnapshot()),
+        )
+
+        viewModel.start(SETUP)
+        runCurrent()
+
+        assertEquals(
+            setOf(SeparationLevel.INSUFFICIENT_DATA),
+            viewModel.state.value.members.map { it.rawSeparationLevel }.toSet(),
+        )
+        assertTrue(viewModel.state.value.members.all { it.separationDistanceMeters == null })
     }
 
     @Test
@@ -88,6 +125,7 @@ class TrackingProofSeparationIntegrationTest {
         memberId: String,
         latitude: Double,
         longitude: Double,
+        accuracyMeters: Double = 8.0,
     ): MemberTrackingState {
         val envelope = TrackingEnvelope(
             protocolVersion = 1,
@@ -104,7 +142,7 @@ class TrackingProofSeparationIntegrationTest {
                 latitude = latitude,
                 longitude = longitude,
                 capturedAtEpochMillis = NOW,
-                accuracyMeters = 8.0,
+                accuracyMeters = accuracyMeters,
                 batteryPercent = 80,
             ),
         )

@@ -2,6 +2,7 @@ package org.pottershouse.impactteam.android.tracking
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -83,6 +84,35 @@ class TrackingServiceRuntimeTest {
             .single()
             .digest
         assertTrue(digest.highestSequenceByOrigin.values.contains(2L))
+    }
+
+    @Test
+    fun periodicDigestReloadsLedgerAfterAnewLocationIsStored() = runTest {
+        val calls = mutableListOf<String>()
+        val transport = FakePeerTransport(calls)
+        var currentSequence = 1L
+        val runtime = TrackingServiceRuntime(
+            loadLedger = { ledgerWithSequence(currentSequence) },
+            acceptRecord = { AcceptResult.Accepted(it, replacedPrevious = false) },
+            startLocation = { calls += "location:start" },
+            stopLocation = { reason -> calls += "location:stop:$reason" },
+            peerTransport = transport,
+            scope = backgroundScope,
+            nowEpochMillis = { NOW },
+        )
+
+        runtime.start(session)
+        transport.emit(TransportEvent.Connected(peer))
+        runCurrent()
+        currentSequence = 2L
+        advanceTimeBy(15_000L)
+        runCurrent()
+
+        val sequences = transport.sent
+            .map { it.second }
+            .filterIsInstance<PeerMessage.Digest>()
+            .map { digest -> digest.digest.highestSequenceByOrigin.values.single() }
+        assertEquals(listOf(1L, 2L), sequences)
     }
 
     private fun kotlinx.coroutines.test.TestScope.runtime(calls: MutableList<String>) =
