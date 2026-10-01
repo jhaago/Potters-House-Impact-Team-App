@@ -48,7 +48,6 @@ class TrackingServiceRuntimeTest {
 
         assertEquals(
             listOf(
-                "load:trip-zimbabwe-2027",
                 "location:start",
                 "peer:start",
                 "peer:stop",
