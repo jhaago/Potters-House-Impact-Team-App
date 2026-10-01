@@ -74,7 +74,10 @@ class NearbyPeerTransport(
             is NearbyClientEvent.EndpointFound -> {
                 val peerId = rememberPeer(event.endpointId, event.endpointName)
                 mutableEvents.emit(TransportEvent.Discovered(peerId))
-                client.requestConnection(localEndpointName.orEmpty(), event.endpointId)
+                val localName = localEndpointName.orEmpty()
+                if (localName < event.endpointName) {
+                    client.requestConnection(localName, event.endpointId)
+                }
             }
             is NearbyClientEvent.EndpointLost -> forgetPeer(event.endpointId)
             is NearbyClientEvent.ConnectionInitiated -> {
