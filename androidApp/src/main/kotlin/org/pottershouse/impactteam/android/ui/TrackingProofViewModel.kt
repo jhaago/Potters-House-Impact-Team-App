@@ -337,9 +337,10 @@ private fun MemberTrackingState.toRow(
     separation: MonitoredSeparationAssessment?,
 ): MemberStateRowModel {
     val payload = observed.envelope.payload
+    val observedAtEpochMillis = minOf(observed.receivedAtEpochMillis, payload.capturedAtEpochMillis)
     return MemberStateRowModel(
         memberId = memberId.value,
-        ageLabel = formatAge(observed.receivedAtEpochMillis, nowEpochMillis),
+        ageLabel = formatAge(observedAtEpochMillis, nowEpochMillis),
         freshnessLabel = when (freshness) {
             Freshness.CURRENT -> "Current"
             Freshness.BECOMING_STALE -> "Becoming stale"
