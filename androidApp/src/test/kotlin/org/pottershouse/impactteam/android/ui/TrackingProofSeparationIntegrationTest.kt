@@ -41,6 +41,7 @@ class TrackingProofSeparationIntegrationTest {
         viewModel.start(SETUP)
         runCurrent()
 
+        assertEquals(2, viewModel.state.value.members.size)
         viewModel.state.value.members.forEach { member ->
             assertEquals(SeparationLevel.CLEAR, member.separationLevel)
             assertEquals(SeparationLevel.CLEAR, member.rawSeparationLevel)
