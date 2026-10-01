@@ -99,6 +99,26 @@ class TrackingProofViewModelTest {
     }
 
     @Test
+    fun memberRowAgeUsesGpsCaptureTimeRatherThanRecentRelayReceipt() = runTest {
+        val members = listOf(
+            memberState(
+                memberId = "sam",
+                freshness = Freshness.STALE,
+                arrivalPath = ArrivalPath.DIRECT_PEER,
+                capturedAtEpochMillis = now - 180_000,
+                receivedAtEpochMillis = now - 2_000,
+            ),
+        )
+        val viewModel = viewModel(loadMembers = { members })
+        runCurrent()
+
+        viewModel.start(setup)
+        runCurrent()
+
+        assertEquals("3 min ago", viewModel.state.value.members.single().ageLabel)
+    }
+
+    @Test
     fun diagnosticsAreRedactedAndExposeOperationalCounters() = runTest {
         val telemetry = MutableStateFlow(
             TrackingProofTelemetrySnapshot(
@@ -169,6 +189,8 @@ class TrackingProofViewModelTest {
         freshness: Freshness,
         arrivalPath: ArrivalPath,
         relayCount: Int = 0,
+        capturedAtEpochMillis: Long = now - 12_000,
+        receivedAtEpochMillis: Long = now - 12_000,
     ): MemberTrackingState {
         val envelope = TrackingEnvelope(
             protocolVersion = 1,
@@ -178,13 +200,13 @@ class TrackingProofViewModelTest {
             memberId = MemberId(memberId),
             originDeviceId = DeviceId("device-$memberId"),
             originSequence = 1,
-            createdAtEpochMillis = now - 12_000,
+            createdAtEpochMillis = capturedAtEpochMillis,
             priority = MessagePriority.NORMAL,
             expiresAtEpochMillis = now + 60_000,
             payload = LocationPayload(
                 latitude = -17.8252,
                 longitude = 31.0335,
-                capturedAtEpochMillis = now - 12_000,
+                capturedAtEpochMillis = capturedAtEpochMillis,
                 accuracyMeters = 8.4,
                 batteryPercent = 41,
             ),
@@ -193,7 +215,7 @@ class TrackingProofViewModelTest {
             memberId = envelope.memberId,
             observed = ObservedEnvelope(
                 envelope = envelope,
-                receivedAtEpochMillis = now - 12_000,
+                receivedAtEpochMillis = receivedAtEpochMillis,
                 arrivalPath = arrivalPath,
                 suppliedByPeerId = null,
                 relayCount = relayCount,
