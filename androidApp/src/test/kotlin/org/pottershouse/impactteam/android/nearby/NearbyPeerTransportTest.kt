@@ -72,6 +72,19 @@ class NearbyPeerTransportTest {
     }
 
     @Test
+    fun higherDeviceIdDoesNotAlsoRequestConnectionWhenPairIsDiscovered() = runTest {
+        val client = FakeNearbyClient()
+        val higherIdSession = session.copy(deviceId = DeviceId("device-zulu"))
+        val transport = NearbyPeerTransport(client, backgroundScope)
+        transport.start(higherIdSession)
+
+        client.emit(NearbyClientEvent.EndpointFound("endpoint-2", "device-alpha"))
+        runCurrent()
+
+        assertTrue(client.requestedEndpoints.isEmpty())
+    }
+
+    @Test
     fun malformedPayloadDoesNotPreventNextValidMessage() = runTest {
         val client = FakeNearbyClient()
         val transport = NearbyPeerTransport(client, backgroundScope)
