@@ -2,9 +2,10 @@ package org.pottershouse.impactteam.transport
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.pottershouse.impactteam.domain.ActiveTripSession
 import org.pottershouse.impactteam.domain.DeviceId
 import org.pottershouse.impactteam.domain.MemberId
@@ -50,6 +51,30 @@ class TransportRouterTest {
         val sent = transport.sent.single()
         assertEquals(peer, sent.first)
         assertIs<PeerMessage.Digest>(sent.second)
+    }
+
+    @Test
+    fun connectedPeerReceivesFreshDigestOnPeriodicSync() = runTest {
+        val transport = FakePeerTransport()
+        var digestSequence = 1L
+        val router = router(
+            transport = transport,
+            digest = {
+                SyncDigest(mapOf(DeviceId("local") to digestSequence++), emptySet())
+            },
+            syncIntervalMillis = 1_000L,
+        )
+        router.start(session)
+
+        transport.emit(TransportEvent.Connected(peer))
+        runCurrent()
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        val sequences = transport.sent.map { sent ->
+            assertIs<PeerMessage.Digest>(sent.second).digest.highestSequenceByOrigin.values.single()
+        }
+        assertEquals(listOf(1L, 2L), sequences)
     }
 
     @Test
@@ -135,7 +160,8 @@ class TransportRouterTest {
     private fun TestScope.router(
         transport: FakePeerTransport,
         accepted: MutableList<ObservedEnvelope> = mutableListOf(),
-        digest: () -> SyncDigest = { SyncDigest.EMPTY },
+        digest: suspend () -> SyncDigest = { SyncDigest.EMPTY },
+        syncIntervalMillis: Long = 15_000L,
     ) = TransportRouter(
         transport = transport,
         scope = backgroundScope,
@@ -146,6 +172,7 @@ class TransportRouterTest {
             accepted += it
             AcceptResult.Accepted(it, replacedPrevious = false)
         },
+        syncIntervalMillis = syncIntervalMillis,
     )
 
     private class FakePeerTransport : PeerTransport {
