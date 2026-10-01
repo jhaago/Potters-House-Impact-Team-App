@@ -26,14 +26,19 @@ class TrackingServiceRuntime(
         if (activeSession == session) return
         if (activeSession != null) stop("Active trip changed")
 
-        val planner = SyncPlanner(loadLedger(session.tripId))
         val newRouter = TransportRouter(
             transport = peerTransport,
             scope = scope,
             nowEpochMillis = nowEpochMillis,
-            digestProvider = { planner.digest(nowEpochMillis()) },
+            digestProvider = {
+                SyncPlanner(loadLedger(session.tripId)).digest(nowEpochMillis())
+            },
             batchPlanner = { peerId, digest ->
-                planner.plan(peerId.deviceId, digest, nowEpochMillis())
+                SyncPlanner(loadLedger(session.tripId)).plan(
+                    peerId.deviceId,
+                    digest,
+                    nowEpochMillis(),
+                )
             },
             acceptRecord = acceptRecord,
         )
