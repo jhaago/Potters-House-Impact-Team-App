@@ -302,19 +302,34 @@ class TrackingProofViewModel(
     private suspend fun refreshMembers(tripId: TripId) {
         val now = nowEpochMillis()
         val memberStates = loadMembers(tripId)
+        val evidenceRecordIds = memberStates.associate { member ->
+            member.memberId to member.observed.envelope.recordId
+        }
         val separationByMember = separationMonitor
-            .update(separationAnalyzer.assess(memberStates), now)
+            .update(
+                assessments = separationAnalyzer.assess(memberStates),
+                nowEpochMillis = now,
+                evidenceRecordIds = evidenceRecordIds,
+            )
             .associateBy { it.memberId }
         val rows = memberStates
             .map { member -> member.toRow(now, separationByMember[member.memberId]) }
             .sortedBy { it.memberId }
+        val memberStatesById = memberStates.associateBy { it.memberId.value }
 
         separationFieldTestRecorder.snapshot().memberId?.let { targetMemberId ->
-            rows.firstOrNull { it.memberId == targetMemberId }?.let { target ->
+            val targetRow = rows.firstOrNull { it.memberId == targetMemberId }
+            val targetState = memberStatesById[targetMemberId]
+            if (targetRow != null && targetState != null) {
+                val payload = targetState.observed.envelope.payload
                 separationFieldTestRecorder.observe(
-                    stableLevel = target.separationLevel,
-                    rawLevel = target.rawSeparationLevel,
+                    stableLevel = targetRow.separationLevel,
+                    rawLevel = targetRow.rawSeparationLevel,
                     observedAtEpochMillis = now,
+                    gpsFixId = targetState.observed.envelope.recordId.value,
+                    capturedAtEpochMillis = payload.capturedAtEpochMillis,
+                    accuracyMeters = payload.accuracyMeters.roundToInt(),
+                    separationDistanceMeters = targetRow.separationDistanceMeters,
                 )
             }
         }

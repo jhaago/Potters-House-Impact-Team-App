@@ -10,6 +10,10 @@ data class SeparationFieldTestState(
     val warningAtEpochMillis: Long? = null,
     val seriousAtEpochMillis: Long? = null,
     val recoveredAtEpochMillis: Long? = null,
+    val uniqueGpsFixCount: Int = 0,
+    val latestFixAgeSeconds: Long? = null,
+    val latestAccuracyMeters: Int? = null,
+    val latestSeparationDistanceMeters: Int? = null,
 ) {
     val isActive: Boolean
         get() = memberId != null && startedAtEpochMillis != null
@@ -27,6 +31,7 @@ data class SeparationFieldTestState(
             timestamp == null || started == null -> "pending"
             else -> "${((timestamp - started).coerceAtLeast(0L) / 1_000L)} sec"
         }
+        fun latest(value: Int?, suffix: String): String = value?.let { "$it $suffix" } ?: "unknown"
 
         return buildString {
             appendLine("Impact Team separation field test")
@@ -36,29 +41,53 @@ data class SeparationFieldTestState(
             appendLine("Watching: ${elapsed(watchingAtEpochMillis)}")
             appendLine("WARNING: ${elapsed(warningAtEpochMillis)}")
             appendLine("SERIOUS: ${elapsed(seriousAtEpochMillis)}")
-            append("Recovered: ${elapsed(recoveredAtEpochMillis)}")
+            appendLine("Recovered: ${elapsed(recoveredAtEpochMillis)}")
+            appendLine("GPS fixes observed: $uniqueGpsFixCount")
+            appendLine("Latest fix age: ${latestFixAgeSeconds?.let { "$it sec" } ?: "unknown"}")
+            appendLine("Latest accuracy: ${latestAccuracyMeters?.let { "±$it m" } ?: "unknown"}")
+            append("Latest separation: ${latest(latestSeparationDistanceMeters, "m")}")
         }
     }
 }
 
 class SeparationFieldTestRecorder {
     private var state = SeparationFieldTestState()
+    private var lastGpsFixId: String? = null
 
     fun start(memberId: String, startedAtEpochMillis: Long) {
         state = SeparationFieldTestState(
             memberId = memberId,
             startedAtEpochMillis = startedAtEpochMillis,
         )
+        lastGpsFixId = null
     }
 
     fun observe(
         stableLevel: SeparationLevel,
         rawLevel: SeparationLevel,
         observedAtEpochMillis: Long,
+        gpsFixId: String? = null,
+        capturedAtEpochMillis: Long? = null,
+        accuracyMeters: Int? = null,
+        separationDistanceMeters: Int? = null,
     ) {
         if (!state.isActive) return
 
         var next = state
+
+        if (gpsFixId != null) {
+            if (gpsFixId != lastGpsFixId) {
+                next = next.copy(uniqueGpsFixCount = next.uniqueGpsFixCount + 1)
+                lastGpsFixId = gpsFixId
+            }
+            next = next.copy(
+                latestFixAgeSeconds = capturedAtEpochMillis?.let {
+                    ((observedAtEpochMillis - it).coerceAtLeast(0L) / 1_000L)
+                },
+                latestAccuracyMeters = accuracyMeters,
+                latestSeparationDistanceMeters = separationDistanceMeters,
+            )
+        }
 
         if (
             next.withinRangeAtEpochMillis == null &&
@@ -105,5 +134,6 @@ class SeparationFieldTestRecorder {
 
     fun reset() {
         state = SeparationFieldTestState()
+        lastGpsFixId = null
     }
 }

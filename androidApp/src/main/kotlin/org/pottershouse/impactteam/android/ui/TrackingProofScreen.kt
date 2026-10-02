@@ -196,6 +196,8 @@ private fun SeparationFieldTestCard(
                 Text("WARNING: ${fieldTest.warningAtEpochMillis.milestoneStatus()}")
                 Text("SERIOUS: ${fieldTest.seriousAtEpochMillis.milestoneStatus()}")
                 Text("Recovered: ${fieldTest.recoveredAtEpochMillis.milestoneStatus()}")
+                Text("GPS fixes observed: ${fieldTest.uniqueGpsFixCount}")
+                Text("Latest fix: ${fieldTest.latestEvidenceLabel()}")
                 Text(
                     if (fieldTest.isComplete) "Field test complete" else "Field test in progress",
                     color = if (fieldTest.isComplete) {
@@ -216,6 +218,13 @@ private fun SeparationFieldTestCard(
 }
 
 private fun Long?.milestoneStatus(): String = if (this == null) "pending" else "observed"
+
+private fun SeparationFieldTestState.latestEvidenceLabel(): String {
+    val age = latestFixAgeSeconds?.let { "$it sec old" } ?: "age unknown"
+    val accuracy = latestAccuracyMeters?.let { "±$it m" } ?: "accuracy unknown"
+    val separation = latestSeparationDistanceMeters?.let { "$it m separation" } ?: "separation unknown"
+    return "$age • $accuracy • $separation"
+}
 
 private fun TrackingHealth.displayName(): String = when (this) {
     TrackingHealth.Idle -> "Not started"
