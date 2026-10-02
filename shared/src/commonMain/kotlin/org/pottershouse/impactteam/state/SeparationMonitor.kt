@@ -1,6 +1,7 @@
 package org.pottershouse.impactteam.state
 
 import org.pottershouse.impactteam.domain.MemberId
+import org.pottershouse.impactteam.domain.RecordId
 
 data class SeparationMonitorPolicy(
     val warningSustainMillis: Long = 30_000,
@@ -41,6 +42,7 @@ class SeparationMonitor(
     fun update(
         assessments: List<SeparationAssessment>,
         nowEpochMillis: Long,
+        evidenceRecordIds: Map<MemberId, RecordId>? = null,
     ): List<MonitoredSeparationAssessment> = assessments.map { assessment ->
         val state = memberStates.getOrPut(assessment.memberId) { MemberState() }
         val evidenceDistance = assessment.evidenceDistanceMeters()
@@ -54,6 +56,24 @@ class SeparationMonitor(
                 evidenceDistanceMeters = evidenceDistance,
                 movingAway = false,
             )
+        }
+
+        val evidenceRecordId = evidenceRecordIds?.get(assessment.memberId)
+        val hasNewEvidence = evidenceRecordIds == null ||
+            (evidenceRecordId != null && evidenceRecordId != state.lastEvidenceRecordId)
+
+        if (!hasNewEvidence) {
+            return@map MonitoredSeparationAssessment(
+                memberId = assessment.memberId,
+                level = state.activeLevel,
+                rawLevel = assessment.level,
+                evidenceDistanceMeters = evidenceDistance,
+                movingAway = false,
+            )
+        }
+
+        if (evidenceRecordIds != null) {
+            state.lastEvidenceRecordId = evidenceRecordId
         }
 
         if (evidenceDistance != null) {
@@ -166,6 +186,7 @@ class SeparationMonitor(
         var concernSinceEpochMillis: Long? = null
         var seriousSinceEpochMillis: Long? = null
         var clearSinceEpochMillis: Long? = null
+        var lastEvidenceRecordId: RecordId? = null
         val distanceSamples = mutableListOf<DistanceSample>()
 
         fun recordDistance(
