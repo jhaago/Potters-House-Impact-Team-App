@@ -57,6 +57,7 @@ class SeparationFieldTestRecorderTest {
 
         val result = recorder.snapshot()
         assertEquals(null, result.memberId)
+        assertEquals(0, result.uniqueGpsFixCount)
         assertFalse(result.isActive)
     }
 
@@ -80,5 +81,53 @@ class SeparationFieldTestRecorderTest {
         assertFalse(summary.contains("latitude", ignoreCase = true))
         assertFalse(summary.contains("longitude", ignoreCase = true))
         assertFalse(summary.contains("-17."))
+    }
+
+    @Test
+    fun `diagnostics count unique fixes without exposing fix ids`() {
+        val recorder = SeparationFieldTestRecorder()
+        recorder.start(memberId = "member-e", startedAtEpochMillis = 1_000L)
+
+        recorder.observe(
+            stableLevel = SeparationLevel.CLEAR,
+            rawLevel = SeparationLevel.CLEAR,
+            observedAtEpochMillis = 10_000L,
+            gpsFixId = "fix-1",
+            capturedAtEpochMillis = 9_000L,
+            accuracyMeters = 8,
+            separationDistanceMeters = 30,
+        )
+        recorder.observe(
+            stableLevel = SeparationLevel.CLEAR,
+            rawLevel = SeparationLevel.CLEAR,
+            observedAtEpochMillis = 11_000L,
+            gpsFixId = "fix-1",
+            capturedAtEpochMillis = 9_000L,
+            accuracyMeters = 8,
+            separationDistanceMeters = 31,
+        )
+        recorder.observe(
+            stableLevel = SeparationLevel.CLEAR,
+            rawLevel = SeparationLevel.WARNING,
+            observedAtEpochMillis = 20_000L,
+            gpsFixId = "fix-2",
+            capturedAtEpochMillis = 19_000L,
+            accuracyMeters = 6,
+            separationDistanceMeters = 205,
+        )
+
+        val result = recorder.snapshot()
+        assertEquals(2, result.uniqueGpsFixCount)
+        assertEquals(1L, result.latestFixAgeSeconds)
+        assertEquals(6, result.latestAccuracyMeters)
+        assertEquals(205, result.latestSeparationDistanceMeters)
+
+        val summary = result.redactedSummary()
+        assertTrue(summary.contains("GPS fixes observed: 2"))
+        assertTrue(summary.contains("Latest fix age: 1 sec"))
+        assertTrue(summary.contains("Latest accuracy: ±6 m"))
+        assertTrue(summary.contains("Latest separation: 205 m"))
+        assertFalse(summary.contains("fix-1"))
+        assertFalse(summary.contains("fix-2"))
     }
 }

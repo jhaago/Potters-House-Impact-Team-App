@@ -86,15 +86,9 @@ class TrackingProofSeparationIntegrationTest {
     }
 
     @Test
-    fun rawSeparationIsWatchingBeforeSustainThenPromotesToWarning() = runTest {
+    fun sameGpsFixStaysWatchingInsteadOfPromotingToWarning() = runTest {
         var clock = NOW
-        val members = listOf(
-            memberState("amy", -17.82520, 31.03350),
-            memberState("ben", -17.82500, 31.03365),
-            memberState("cara", -17.82535, 31.03375),
-            memberState("david", -17.82338, 31.03350),
-        )
-        val telemetry = MutableStateFlow(TrackingProofTelemetrySnapshot())
+        val members = warningMembers()
         val viewModel = TrackingProofViewModel(
             scope = backgroundScope,
             nowEpochMillis = { clock },
@@ -102,7 +96,7 @@ class TrackingProofSeparationIntegrationTest {
             startTracking = {},
             stopTracking = {},
             loadMembers = { members },
-            telemetry = telemetry,
+            telemetry = MutableStateFlow(TrackingProofTelemetrySnapshot()),
         )
 
         viewModel.start(SETUP)
@@ -116,32 +110,80 @@ class TrackingProofSeparationIntegrationTest {
         advanceTimeBy(1_000)
         runCurrent()
 
+        val repeated = viewModel.state.value.members.single { it.memberId == "david" }
+        assertEquals(SeparationLevel.CLEAR, repeated.separationLevel)
+        assertEquals(SeparationLevel.WARNING, repeated.rawSeparationLevel)
+    }
+
+    @Test
+    fun newGpsFixAfterSustainPromotesWatchingToWarning() = runTest {
+        var clock = NOW
+        var members = warningMembers()
+        val viewModel = TrackingProofViewModel(
+            scope = backgroundScope,
+            nowEpochMillis = { clock },
+            missingPermissions = { emptySet<TrackingPermission>() },
+            startTracking = {},
+            stopTracking = {},
+            loadMembers = { members },
+            telemetry = MutableStateFlow(TrackingProofTelemetrySnapshot()),
+        )
+
+        viewModel.start(SETUP)
+        runCurrent()
+
+        clock += 31_000
+        members = members.map { member ->
+            if (member.memberId.value == "david") {
+                memberState(
+                    memberId = "david",
+                    latitude = -17.82338,
+                    longitude = 31.03350,
+                    originSequence = 2,
+                    capturedAtEpochMillis = clock,
+                )
+            } else {
+                member
+            }
+        }
+        advanceTimeBy(1_000)
+        runCurrent()
+
         val warning = viewModel.state.value.members.single { it.memberId == "david" }
         assertEquals(SeparationLevel.WARNING, warning.separationLevel)
         assertEquals(SeparationLevel.WARNING, warning.rawSeparationLevel)
     }
+
+    private fun warningMembers() = listOf(
+        memberState("amy", -17.82520, 31.03350),
+        memberState("ben", -17.82500, 31.03365),
+        memberState("cara", -17.82535, 31.03375),
+        memberState("david", -17.82338, 31.03350),
+    )
 
     private fun memberState(
         memberId: String,
         latitude: Double,
         longitude: Double,
         accuracyMeters: Double = 8.0,
+        originSequence: Long = 1,
+        capturedAtEpochMillis: Long = NOW,
     ): MemberTrackingState {
         val envelope = TrackingEnvelope(
             protocolVersion = 1,
-            recordId = RecordId("record-$memberId"),
+            recordId = RecordId("record-$memberId-$originSequence"),
             tripId = TripId(SETUP.tripId),
             teamId = TeamId(SETUP.teamId),
             memberId = MemberId(memberId),
             originDeviceId = DeviceId("device-$memberId"),
-            originSequence = 1,
-            createdAtEpochMillis = NOW,
+            originSequence = originSequence,
+            createdAtEpochMillis = capturedAtEpochMillis,
             priority = MessagePriority.NORMAL,
-            expiresAtEpochMillis = NOW + 3_600_000,
+            expiresAtEpochMillis = capturedAtEpochMillis + 3_600_000,
             payload = LocationPayload(
                 latitude = latitude,
                 longitude = longitude,
-                capturedAtEpochMillis = NOW,
+                capturedAtEpochMillis = capturedAtEpochMillis,
                 accuracyMeters = accuracyMeters,
                 batteryPercent = 80,
             ),
@@ -150,7 +192,7 @@ class TrackingProofSeparationIntegrationTest {
             memberId = envelope.memberId,
             observed = ObservedEnvelope(
                 envelope = envelope,
-                receivedAtEpochMillis = NOW,
+                receivedAtEpochMillis = capturedAtEpochMillis,
                 arrivalPath = ArrivalPath.DIRECT_PEER,
                 suppliedByPeerId = null,
             ),

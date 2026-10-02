@@ -54,7 +54,7 @@ class SeparationFieldTestScreenTest {
     }
 
     @Test
-    fun activeFieldTestDisplaysMilestoneProgressAndCopyableSummary() {
+    fun activeFieldTestDisplaysMilestoneProgressAndGpsEvidence() {
         val state = activeState().copy(
             members = listOf(memberRow("member-a")),
             separationFieldTest = SeparationFieldTestState(
@@ -63,6 +63,10 @@ class SeparationFieldTestScreenTest {
                 withinRangeAtEpochMillis = 2_000L,
                 watchingAtEpochMillis = 4_000L,
                 warningAtEpochMillis = 34_000L,
+                uniqueGpsFixCount = 3,
+                latestFixAgeSeconds = 2L,
+                latestAccuracyMeters = 7,
+                latestSeparationDistanceMeters = 205,
             ),
         )
 
@@ -87,6 +91,8 @@ class SeparationFieldTestScreenTest {
         compose.onNodeWithText("WARNING: observed").assertIsDisplayed()
         compose.onNodeWithText("SERIOUS: pending").assertIsDisplayed()
         compose.onNodeWithText("Recovered: pending").assertIsDisplayed()
+        compose.onNodeWithText("GPS fixes observed: 3").assertIsDisplayed()
+        compose.onNodeWithText("Latest fix: 2 sec old • ±7 m • 205 m separation").assertIsDisplayed()
         compose.onNodeWithText("COPY FIELD TEST RESULT").assertIsDisplayed()
     }
 
