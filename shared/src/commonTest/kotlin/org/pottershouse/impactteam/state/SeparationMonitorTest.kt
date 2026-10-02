@@ -1,6 +1,7 @@
 package org.pottershouse.impactteam.state
 
 import org.pottershouse.impactteam.domain.MemberId
+import org.pottershouse.impactteam.domain.RecordId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -96,6 +97,83 @@ class SeparationMonitorTest {
         assertEquals(SeparationLevel.INSUFFICIENT_DATA, result.level)
         assertEquals(SeparationLevel.INSUFFICIENT_DATA, result.rawLevel)
     }
+
+    @Test
+    fun sameGpsFixCannotSatisfyWarningSustain() {
+        val monitor = SeparationMonitor()
+        val fix = evidence("fix-1")
+
+        monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 210.0)), 0, fix)
+        val repeated = monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 210.0)), 60_000, fix).single()
+
+        assertEquals(SeparationLevel.CLEAR, repeated.level)
+        assertEquals(SeparationLevel.WARNING, repeated.rawLevel)
+    }
+
+    @Test
+    fun newGpsFixCanConfirmSustainedWarning() {
+        val monitor = SeparationMonitor()
+
+        monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 210.0)), 0, evidence("fix-1"))
+        val confirmed = monitor.update(
+            listOf(assessment("a", SeparationLevel.WARNING, 212.0)),
+            31_000,
+            evidence("fix-2"),
+        ).single()
+
+        assertEquals(SeparationLevel.WARNING, confirmed.level)
+    }
+
+    @Test
+    fun repeatedGpsFixCannotCreateMovingAwayTrend() {
+        val monitor = SeparationMonitor()
+
+        monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 190.0)), 0, evidence("fix-1"))
+        monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 225.0)), 5_000, evidence("fix-2"))
+        val repeated = monitor.update(
+            listOf(assessment("a", SeparationLevel.SERIOUS, 290.0)),
+            10_000,
+            evidence("fix-2"),
+        ).single()
+
+        assertFalse(repeated.movingAway)
+        assertEquals(SeparationLevel.CLEAR, repeated.level)
+    }
+
+    @Test
+    fun recoveryRequiresNewClearGpsFix() {
+        val monitor = SeparationMonitor()
+
+        monitor.update(listOf(assessment("a", SeparationLevel.WARNING, 200.0)), 0, evidence("fix-1"))
+        assertEquals(
+            SeparationLevel.WARNING,
+            monitor.update(
+                listOf(assessment("a", SeparationLevel.WARNING, 200.0)),
+                30_000,
+                evidence("fix-2"),
+            ).single().level,
+        )
+        monitor.update(listOf(assessment("a", SeparationLevel.CLEAR, 130.0)), 40_000, evidence("fix-3"))
+
+        assertEquals(
+            SeparationLevel.WARNING,
+            monitor.update(
+                listOf(assessment("a", SeparationLevel.CLEAR, 130.0)),
+                70_000,
+                evidence("fix-3"),
+            ).single().level,
+        )
+        assertEquals(
+            SeparationLevel.CLEAR,
+            monitor.update(
+                listOf(assessment("a", SeparationLevel.CLEAR, 130.0)),
+                71_000,
+                evidence("fix-4"),
+            ).single().level,
+        )
+    }
+
+    private fun evidence(recordId: String) = mapOf(MemberId("a") to RecordId(recordId))
 
     private fun assessment(
         member: String,
